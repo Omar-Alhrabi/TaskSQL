@@ -111,7 +111,68 @@ JOIN courses ON course_instructors.course_id = courses.course_id
 JOIN instructors ON course_instructors.instructor_id = instructors.instructor_id
 WHERE course_instructors.semester = 'Fall 2024'; 
 
+1----------------------------------------------------------------
+DELIMITER //
+CREATE FUNCTION GetStudentAge(date_of_birth DATE)
+RETURNS INT
+DETERMINISTIC
+BEGIN
+DECLARE age INT;
+SET age = TIMESTAMPDIFF(YEAR, date_of_birth, CURDATE());
+RETURN age;
+
+END //
+
+DELIMITER ;
+2----------------------------------------------------------------
+
+
+DELIMITER //
+
+CREATE PROCEDURE EnrollStudent(
+    IN student_id INT, 
+    IN course_id INT
+)
+BEGIN
+    DECLARE student_exists INT;
+    DECLARE course_exists INT;
+    DECLARE already_enrolled INT;
+    
+    SELECT COUNT(*) INTO student_exists FROM students WHERE student_id = student_id;
+    
+    SELECT COUNT(*) INTO course_exists FROM courses WHERE course_id = course_id;
+    
+    SELECT COUNT(*) INTO already_enrolled 
+    FROM enrollment 
+    WHERE student_id = student_id AND course_id = course_id;
+
+    IF student_exists = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'not found student';
+    ELSEIF course_exists = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'not found course';
+    ELSEIF already_enrolled > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'The student is registered in this course.!';
+    ELSE
+        INSERT INTO enrollment (student_id, course_id)
+        VALUES (student_id, course_id);
+        
+        SELECT ' The student has successfully registered for the course.' AS message;
+    END IF;
+END //
+
+DELIMITER ;
+
 ----------------------------------------------------------------
 
-
+SELECT 
+    department,
+    ROUND(AVG(
+        CASE 
+            WHEN grade REGEXP '^[0-9]+$' THEN grade 
+            ELSE NULL 
+        END
+    ), 2) AS average_grade
+FROM enrollment 
+JOIN courses ON course_id = course_id
+GROUP BY department;
 
