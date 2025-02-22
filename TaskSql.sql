@@ -162,7 +162,7 @@ END //
 
 DELIMITER ;
 
-----------------------------------------------------------------
+3----------------------------------------------------------------
 
 SELECT 
     department,
@@ -176,3 +176,104 @@ FROM enrollment
 JOIN courses ON course_id = course_id
 GROUP BY department;
 
+1----------------------------------------------------------------
+
+ALTER TABLE students
+ADD CONSTRAINT unique_email UNIQUE (email);
+
+
+2----------------------------------------------------------------
+
+ALTER TABLE courses ADD COLUMN capacity INT DEFAULT 30;
+DELIMITER $$
+
+CREATE PROCEDURE enroll_student_if_capacity(
+    IN p_student_id INT,
+    IN p_course_id INT
+)
+BEGIN
+    DECLARE current_enrollment INT; 
+    DECLARE course_capacity INT; 
+
+    
+    START TRANSACTION;
+
+  
+    SELECT COUNT(*) INTO current_enrollment 
+    FROM enrollments 
+    WHERE course_id = p_course_id;
+ 
+    SELECT capacity INTO course_capacity 
+    FROM courses 
+    WHERE course_id = p_course_id;
+
+  
+    IF current_enrollment < course_capacity THEN
+        
+        INSERT INTO enrollments (student_id, course_id, grade)
+        VALUES (p_student_id, p_course_id, NULL);
+        COMMIT; 
+    ELSE
+        ROLLBACK; 
+    END IF;
+
+END $$
+
+DELIMITER ;
+
+1----------------------------------------------------------------
+
+CREATE INDEX idx_course_code ON courses(course_code);
+SELECT * FROM courses WHERE course_code = 'CS101';
+
+2----------------------------------------------------------------
+
+EXPLAIN SELECT s.student_id, s.first_name, s.last_name, s.email
+FROM students s
+JOIN enrollments e ON s.student_id = e.student_id
+WHERE e.course_id = 101;
+
+1----------------------------------------------------------------
+
+SELECT 
+    s.student_id, 
+    s.first_name, 
+    s.last_name, 
+    c.course_id, 
+    c.course_name, 
+    c.course_code
+FROM students s
+INNER JOIN enrollments e ON s.student_id = e.student_id
+INNER JOIN courses c ON e.course_id = c.course_id;
+
+2----------------------------------------------------------------
+
+SELECT 
+    i.instructor_id, 
+    i.first_name, 
+    i.last_name, 
+    c.course_id, 
+    c.course_name
+FROM instructors i
+LEFT JOIN courses c ON i.instructor_id = c.instructor_id;
+
+
+3----------------------------------------------------------------
+
+SELECT 
+    student_id AS id, 
+    first_name, 
+    last_name, 
+    email, 
+    'Student' AS role
+FROM students
+
+UNION
+
+SELECT 
+    instructor_id AS id, 
+    first_name, 
+    last_name, 
+    email, 
+    'Instructor' AS role
+FROM instructors;
